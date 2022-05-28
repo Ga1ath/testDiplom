@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 include_directories(.)
 
 add_executable(
+    Diplom
     main.cpp
     Error.cpp
     Defines.cpp

@@ -64,7 +64,14 @@ private:
 
 public:
 
-    static Value call(const Value &arg, std::vector<Value> arguments, const Coordinate& pos);
+    static Value call(const Value &arg, std::vector<Value> arguments, Coordinate pos) {
+        Func *f = arg.get_function();
+        size_t sz = f->argv.size();
+        for (size_t i = 0; i < sz; ++i) {
+            f->local[f->argv[i]] = arguments[i];
+        }
+        return f->body->exec(&f->local);
+    }
 
     Value();
 

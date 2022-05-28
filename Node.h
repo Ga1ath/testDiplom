@@ -66,7 +66,6 @@ public:
 	Node *right = nullptr;
 	Node *cond = nullptr;
 	std::vector<Node *> fields;
-    static int id;
 
 	Node();
 
@@ -104,4 +103,3 @@ public:
 
     std::string &get_type(std::string &tag);
 };
-int Node::id = 0;

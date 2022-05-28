@@ -29,9 +29,7 @@ void Parser::init(std::vector<Token> &ts) {
 }
 
 
-Node::Node() {
-    id++;
-}
+Node::Node() = default;
 
 Node::Node(const Node &n) : _coord(n._coord), _tag(n._tag), _label(n._label), _priority(n._priority) {
     if (n.left) left = new Node(*n.left);
