@@ -199,8 +199,9 @@ Value& analyse(
     if (current_tag == Tag::FUNC) {
         std::vector<std::string> args_names = {};
         if (Node::global.count(node->get_label())) {
-            Node::global[node->get_label()].
-                    ;
+            const auto& pair = Node::global.find(node->get_label());
+            pair.operator*().
+            ;
         } else {
             throw std::invalid_argument("FUNC does not exists; node: " + node->toString());
         }
