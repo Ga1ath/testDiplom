@@ -37,3 +37,22 @@
 
     Статическая проверка типов: складываем метры с килограммами.
 
+    \begin{preproc}
+
+        switch(x) := \begin{caseblock}
+                         1 \cdot kg \when x > 0 \\
+                         1 \cdot m \when x < 0 \\
+                         1 \otherwise
+        \end{caseblock} \\
+
+        switch(10) = \placeholder{1 \cdot kg} \\
+        switch(-10) = \placeholder{1 \cdot m} \\
+        switch(0) = \placeholder{1} \\
+        switch(1) + switch(-1) = \placeholder{2 \cdot kg} \\
+        switch(-1) + switch(1) = \placeholder{2 \cdot m} \\
+        switch(1) \cdot switch(-1) = \placeholder{1 \cdot m \cdot kg} \\
+
+    \end{preproc}
+
+
+\end{document}

@@ -7,13 +7,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 include_directories(.)
 
 add_executable(
-        Diplom
-        Coordinate.h
-        Defines.h
-        Error.h
-        FileHandler.h
-        Lexer.h
-        main.cpp
-        Node.h
-        Value.h
+    main.cpp
+    Error.cpp
+    Defines.cpp
+    Coordinate.cpp
+    FileHandler.cpp
+    Lexer.cpp
+    Node.cpp
+    Value.cpp
 )

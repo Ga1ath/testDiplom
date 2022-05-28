@@ -14,6 +14,7 @@ ProgramString Position::ps;
 name_table Node::global;
 replacement_map Node::reps;
 
+
 std::string make_replacement(const std::string& prog, const replacement_map& m) {
 	std::string res;
 	size_t index = 0;
@@ -102,7 +103,7 @@ int main(int argc, char *argv[]) {
             // Стадия семантического анализа для проверки корректности операций с размерными физическими величинами
             res->semantic_analysis();
 
-			res->exec();
+			res->exec({});
 //			std::cout << "after exec()\n";
 
 			//std::string replacement = Position::ps.program;
