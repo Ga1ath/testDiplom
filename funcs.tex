@@ -1,0 +1,58 @@
+%\documentclass[a4paper, 14pt]{extarticle}
+%\usepackage{extsizes}
+%\usepackage[T2A]{fontenc}
+%\usepackage[utf8]{inputenc}
+%\usepackage[english, russian]{babel}
+%\usepackage[fleqn]{amsmath}
+%\usepackage{amssymb, amsfonts, mathtext, mathtools, cite, enumerate, float}
+%\usepackage[pdftex]{graphicx}
+%\usepackage{indentfirst}
+%\usepackage{listings}
+%\usepackage{geometry}
+%\geometry{left=20mm, right=15mm, top=10mm, bottom=20mm}
+%\parindent = 1.5cm
+%\usepackage{longtable}
+%\usepackage{float}
+%
+%\usepackage{tikz}		%пакеты векторной графики
+%\usepackage{pgfplots}	%чтобы по набору точек строить диаграммы
+%\usepackage{xifthen}
+%
+%\sloppy
+%\linespread{1.3}
+%\renewcommand{\rmdefault}{ftm} % Times New Roman
+%\frenchspacing
+%\allowdisplaybreaks
+%\newcommand{\tbs}{\textbackslash}
+%\newcommand{\bs}{\operatorname{\backslash}}
+%\newcommand{\listing}{\par\addtocounter{listing_num}{1}%
+%	\text{Листинг \arabic{listing_num}.} }
+%
+%\usepackage{color}
+%
+%
+%\input{preproc.tex}
+
+\begin{document}
+
+    Статическая проверка типов: складываем метры с килограммами.
+
+    \begin{preproc}
+
+        switch(x) := \begin{caseblock}
+                         1 \cdot kg \when x > 0 \\
+                         1 \cdot m \when x < 0 \\
+                         1 \otherwise
+        \end{caseblock} \\
+
+        switch(10) = \placeholder{} \\
+        switch(-10) = \placeholder{} \\
+        switch(0) = \placeholder{} \\
+        switch(1) + switch(-1) = \placeholder{} \\
+        switch(-1) + switch(1) = \placeholder{} \\
+        switch(1) \cdot switch(-1) = \placeholder{} \\
+
+    \end{preproc}
+
+
+\end{document}
