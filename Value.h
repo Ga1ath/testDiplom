@@ -13,7 +13,7 @@
 typedef struct Func {
     std::vector<std::string> argv;
     name_table local;
-    Node *body;
+    Node* body;
 
     Func(const Func &f);
 
@@ -25,8 +25,10 @@ typedef std::vector<std::vector<Value>> Matrix;
 class Value {
 public:
     typedef enum Type {
-        DOUBLE, MATRIX, FUNCTION
+        DOUBLE, MATRIX, FUNCTION, UNDEFINED
     } Type;
+
+    Type _type;
 
     constexpr const static std::array<int, 7> dimensionless = {0, 0, 0, 0, 0, 0, 0};
 
@@ -53,7 +55,6 @@ public:
     };
 
 private:
-    Type _type;
     union {
         double _double_data;
         std::vector<std::vector<Value>> *_matrix_data;
@@ -64,7 +65,7 @@ private:
 
 public:
 
-    static Value call(const Value &arg, std::vector<Value> arguments, Coordinate pos) {
+    static Value call(const Value &arg, std::vector<Value> arguments, const Coordinate& pos) {
         Func *f = arg.get_function();
         size_t sz = f->argv.size();
         for (size_t i = 0; i < sz; ++i) {
@@ -707,13 +708,53 @@ public:
 
     // Проверка идентичности размерностей
     static bool check_dimensions(const int* first, const int* second) {
-        for (int i = 0; i < 7; ++i) {
+        for (int i = 0; i < 7; i++) {
             if (first[i] != second[i]) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    static bool check_dimensions(const std::array<int, 7> first, const std::array<int, 7> second) {
+        for (int i = 0; i < 7; i++) {
+            if (first[i] != second[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static std::array<int, 7> sum_dimensions(const std::array<int, 7> first, const std::array<int, 7> second) {
+        std::array<int, 7> new_dims = std::array<int, 7>();
+
+        for (int i = 0; i < 7; i++) {
+            new_dims[i] = first[i] + second[i];
+        }
+
+        return new_dims;
+    }
+
+    static std::array<int, 7> sub_dimensions(const std::array<int, 7> first, const std::array<int, 7> second) {
+        std::array<int, 7> new_dims = std::array<int, 7>();
+
+        for (int i = 0; i < 7; i++) {
+            new_dims[i] = first[i] - second[i];
+        }
+
+        return new_dims;
+    }
+
+    static std::array<int, 7> mul_dimensions(const std::array<int, 7> dims, int degree) {
+        std::array<int, 7> new_dims = std::array<int, 7>();
+
+        for (int i = 0; i < 7; i++) {
+            new_dims[i] = dims[i] * degree;
+        }
+
+        return new_dims;
     }
 
     static bool is_dimensionless(const int* dims) {

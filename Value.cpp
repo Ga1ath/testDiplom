@@ -2,7 +2,9 @@
 #include <sstream>
 #include <algorithm>
 #include <utility>
+
 #include "Value.h"
+#include "basic_HM.h"
 
 
 Func::Func(const Func &f) : argv(f.argv) {
@@ -321,96 +323,8 @@ void Node::semantic_analysis() {
         for (auto & field : fields) {
             field->semantic_analysis();
         }
-    } else if (_tag == PRODUCT || _tag == SUM) {
-        Coordinate* coordinate = this->have_dimensions(nullptr);
-        if (coordinate) {
-            if (_tag == PRODUCT) {
-                throw Error(*coordinate, "Element of product is not allowed to be dimensional");
-            } else {
-                throw Error(*coordinate, "Lower or higher bound of sum is not allowed to be dimensional");
-            }
-        }
-    } else if (_tag == DIMENSION) {
-        auto res = dimensions.find(_label);
-        if (res == dimensions.end()) {
-            throw Error(_coord, "This unit is not basic");
-        }
-    } else if (_tag == POW) {
-        Coordinate* coordinate = this->right->have_dimensions(nullptr);
-        if (coordinate) {
-            throw Error(*coordinate, "Power of dimensional number is not defined");
-        }
-    } else if (
-            _tag == GT ||
-            _tag == LT ||
-            _tag == LEQ ||
-            _tag == GEQ ||
-            _tag == EQ ||
-            _tag == NEQ ||
-            _tag == ADD ||
-            _tag == SUB
-            ) { // ПЕРЕДЕЛАТЬ-----------------------------------------------------------------------------------
-        if (_tag == SUB) {
-            std::string left_type = left->get_type((std::string &) "");
-            std::string right_type = right->get_type((std::string &) "");
-
-            if (left_type == "FUNCTION" || right_type == "FUNCTION") {
-                throw Error(_coord, "Function substitution");
-            }
-        }
-        if (_tag == ADD) {
-            std::string left_type = left->get_type((std::string &) "");
-            std::string right_type = right->get_type((std::string &) "");
-
-            if (left_type == "FUNCTION" || right_type == "FUNCTION") {
-                throw Error(_coord, "Function addition");
-            }
-        }
-        int* left_dim = left->calculate_dimensions(
-                new int[7]{0, 0, 0, 0, 0, 0, 0}, true
-        );
-        int* right_dim = right->calculate_dimensions(
-                new int[7]{0, 0, 0, 0, 0, 0, 0}, true
-        );
-        if (!Value::check_dimensions(left_dim, right_dim)) {
-            if (_tag == GT ||
-                _tag == LT ||
-                _tag == LEQ ||
-                _tag == GEQ ||
-                _tag == EQ ||
-                _tag == NEQ
-                    ) {
-                throw Error(this->_coord, "Comparison of different dimensions");
-            } else if (_tag == ADD) {
-                throw Error(this->_coord, "Addition of different dimensions");
-            } else if (_tag == SUB) {
-                throw Error(this->_coord, "Subtraction of different dimensions");
-            }
-        }
-    } else if (_tag == DIV || _tag == FRAC) {
-        std::string left_type = left->get_type((std::string &) "");
-        std::string right_type = right->get_type((std::string &) "");
-
-        if (right_type == "MATRIX") {
-            throw Error(_coord, "Division by matrix");
-        }
-        if (left_type == "FUNCTION" || right_type == "FUNCTION") {
-            throw Error(_coord, "Function division");
-        }
-    } else if (_tag == MUL) {
-        std::string left_type = left->get_type((std::string &) "");
-        std::string right_type = right->get_type((std::string &) "");
-
-        if (left_type == "FUNCTION" || right_type == "FUNCTION") {
-            throw Error(_coord, "Function multiplication");
-        }
-    } else if (_tag == USUB) {
-        std::string left_type = left->get_type((std::string &) "");
-        std::string right_type = right->get_type((std::string &) "");
-
-        if (left_type == "FUNCTION" || right_type == "FUNCTION") {
-            throw Error(_coord, "Function substitution");
-        }
+    } else {
+        analyse(this, false, {}, false);
     }
 }
 

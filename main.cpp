@@ -48,8 +48,8 @@ int main(int argc, char *argv[]) {
 	const char *file_out;
 
 	if (argc < 2 || argc > 3) { //число аргументов должно быть равно 1 или 2
-		file_in = "/home/me/VIII/Diplom/funcs.tex";
-		file_out = "/home/me/VIII/Diplom/_funcs.tex";
+		file_in = "/home/me/VIII/Diplom/debug.tex";
+		file_out = "/home/me/VIII/Diplom/_debug.tex";
 //		replace = true;
 		//std::cerr << "Usage: " << argv[0] << " input [output]" << std::endl;
 		//return 1;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 //            std::cout << "after res->print(\"\");\n";
 
             // Стадия семантического анализа для проверки корректности операций с размерными физическими величинами
-            res->semantic_analysis();
+//            res->semantic_analysis();
 
 			res->exec({});
 //			std::cout << "after exec()\n";

@@ -16,4 +16,5 @@ add_executable(
     Lexer.cpp
     Node.cpp
     Value.cpp
+    basic_HM.cpp
 )
