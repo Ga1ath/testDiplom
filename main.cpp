@@ -51,14 +51,11 @@ int main(int argc, char *argv[]) {
 		file_in = "/home/me/VIII/Diplom/debug.tex";
 		file_out = "/home/me/VIII/Diplom/_debug.tex";
 //		replace = true;
-		//std::cerr << "Usage: " << argv[0] << " input [output]" << std::endl;
-		//return 1;
-	}
-
-	else {
+//		std::cerr << "Usage: " << argv[0] << " input [output]" << std::endl;
+//		return 1;
+	} else {
 		file_in = argv[1];
-		if (argc == 2 ||
-			!std::strcmp(file_in, argv[2])) { //если указан один аргумент или 1 и 2 аргументы совпадают
+		if (argc == 2 || !std::strcmp(file_in, argv[2])) { //если указан один аргумент или 1 и 2 аргументы совпадают
 			file_out = new char[std::strlen(file_in) + 2];        //то файл будет перезаписан
 			std::strcpy(const_cast<char *>(file_out), "_");
 			std::strcat(const_cast<char *>(file_out), file_in);
@@ -78,14 +75,14 @@ int main(int argc, char *argv[]) {
 		ok = false;
 	}
 
-	Node *res = nullptr;
+	Node *res;
 	while (ok) {
 		Position::ps = fh.next();
         if (Position::ps.program.empty()) {
             break;
         }
 		Lexer l;
-		try {
+//		try {
 			std::vector<Token> p = l.program_to_tokens(Position::ps);
 			for (auto& i : p) {
                 printf("%s\n", to_string(i).c_str());
@@ -101,7 +98,7 @@ int main(int argc, char *argv[]) {
 //            std::cout << "after res->print(\"\");\n";
 
             // Стадия семантического анализа для проверки корректности операций с размерными физическими величинами
-//            res->semantic_analysis();
+            res->semantic_analysis();
 
 			res->exec({});
 //			std::cout << "after exec()\n";
@@ -112,36 +109,37 @@ int main(int argc, char *argv[]) {
 			fh.print_to_out(replacement);
 //			std::cout << "fh.print_to_out\n";
 			Node::reps.clear();
-		}
-		catch (Error& err) {
-		    std::cout << "catch (Error err)\n";
-			std::cerr << file_in << ":" << err.what() << std::endl;
-			ok = false;
-		}
-		catch (Value::BadType& err) {
-            std::cout << "catch (Value::BadType err\n)";
-			std::cerr << file_in << ":" << err.what() << std::endl;
-			ok = false;
-		}
-		catch (std::exception& err) {
-            std::cout << "catch (std::exception err)\n";
-			std::cerr << file_in << ":" << err.what() << std::endl;
-			ok = false;
-		}
+//		}
+//		catch (Error& err) {
+//		    std::cout << "catch (Error err)\n";
+//			std::cerr << file_in << ":" << err.what() << std::endl;
+//			ok = false;
+//		}
+//		catch (Value::BadType& err) {
+//            std::cout << "catch (Value::BadType err\n)";
+//			std::cerr << file_in << ":" << err.what() << std::endl;
+//			ok = false;
+//		}
+//		catch (std::exception& err) {
+//            std::cout << "catch (std::exception err)\n";
+//			std::cerr << file_in << ":" << err.what() << std::endl;
+//			ok = false;
+//		}
 
         delete res;
 	}
+
 	if (ok) {                   //если удалось обработать файл и
 		if (replace) {          //если надо перезаписать файл
 			fh.replace_files();
 		}
-	}
-	else { //если не удалось обработать файл, то удалить выходной файл
+	} else { //если не удалось обработать файл, то удалить выходной файл
 		fh.remove_out();
 	}
-	//if (replace) {
-	//    delete[] file_out;
-	//}
+
+//	if (replace) {
+//	    delete[] file_out;
+//	}
 
 //    auto end = std::chrono::steady_clock::now();
 //    auto diff = end - start;

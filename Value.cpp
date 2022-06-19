@@ -25,10 +25,7 @@ const char* Value::BadType::what() {
     return msg.c_str();
 }
 
-Value::Value() : _type(DOUBLE) {
-    _double_data = 1.0;
-    _dimension = dimensionless;
-}
+Value::Value() : _type(UNDEFINED) {}
 
 Value::Value(std::array<int, 7> dim) : _type(DOUBLE) {
     _double_data = 1.0;

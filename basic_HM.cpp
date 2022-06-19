@@ -183,12 +183,13 @@ Node* copy_type(
 
 
 auto global_idents = name_table();
-auto global_funcs = std::map<std::string, std::pair<Node*, std::vector<std::pair<std::string, Value>>>>();
+auto global_funcs = name_table();
+auto global_funcs_body = std::map<std::string, std::pair<Node*, std::vector<std::pair<std::string, Value>>>>();
 
-std::pair<Value, name_table> analyse(
+std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
     Node *node,
     bool inside_func_or_block,
-    name_table local_vars,
+    std::vector<std::pair<std::string, Value>> local_vars,
     bool is_usub
 ) {
     Tag& current_tag = node->get_tag();
@@ -204,44 +205,53 @@ std::pair<Value, name_table> analyse(
     }
 
     if (current_tag == Tag::IDENT) {
-        auto& ident_name = node->get_label();
+        const auto& ident_name = node->get_label();
+
+        bool founded = false;
+        Value val;
+        for (const auto& pair : local_vars) {
+            if (pair.first == ident_name) {
+                founded = true;
+                val = pair.second;
+                break;
+            }
+        }
 
         if (global_idents.count(ident_name) > 0) {
             return {global_idents[ident_name], local_vars};
-        } else if (inside_func_or_block && local_vars.count(ident_name) > 0) {
-            return {local_vars[ident_name], local_vars};
+        } else if (inside_func_or_block && founded) {
+            return {val, local_vars};
         } else {
             throw std::invalid_argument("IDENT does not exists; node: " + node->toString());
         }
     }
 
     if (current_tag == Tag::FUNC) {
-        bool is_present = false;
-        auto args = name_table();
+        if (global_funcs.count(node->get_label()) > 0) {
+            const auto& func_args = global_funcs_body.find(node->get_label())->second.second;
 
-        for (const auto& elem : global_funcs) {
-            if (elem.first == node->get_label()) {
-                is_present = true;
+            for (int i = 0; i < node->fields.size(); i++) {
+                const auto& calculated = analyse(
+                    node->fields[i],
+                    inside_func_or_block,
+                    local_vars,
+                    is_usub
+                ).first._type;
 
-                for (int i = 0; i < node->fields.size(); ++i) {
-                    args.emplace(
-                        elem.second.second[i].first,
-                        analyse(
-                            node->fields[i],
-                            inside_func_or_block,
-                            local_vars,
-                            is_usub
-                        ).first
+                const auto& expected = func_args[i].second._type;
+
+                if (calculated != expected) {
+                    throw std::invalid_argument(
+                            "FUNC argument has an incorrect type: " +
+                            Value::type_string(calculated) +
+                            " instead of: " +
+                            Value::type_string(expected) +
+                            node->toString()
                     );
                 }
-
-                return analyse(
-                    elem.second.first,
-                    true,
-                    args,
-                    is_usub
-                );
             }
+
+            return {global_funcs.find(node->get_label())->second, local_vars};
         }
 
         throw std::invalid_argument("FUNC does not exists; node: " + node->toString());
@@ -252,14 +262,80 @@ std::pair<Value, name_table> analyse(
             if (option->cond != nullptr) {
                 Tag cond_tag = option->cond->get_tag();
 
-                auto left = analyse(option->cond->left, inside_func_or_block, local_vars, is_usub);
-                auto right = analyse(option->cond->right, inside_func_or_block, left.second, is_usub);
+                auto left = analyse(
+                    option->cond->left,
+                    inside_func_or_block,
+                    local_vars,
+                    is_usub
+                );
+                auto right = analyse(
+                    option->cond->right,
+                    inside_func_or_block,
+                    left.second,
+                    is_usub
+                );
+
+                if (
+                    left.first._type == Value::UNDEFINED &&
+                    option->cond->left->get_tag() == Tag::IDENT &&
+                    right.first._type == Value::DOUBLE
+                ) {
+                    left.first._type = Value::DOUBLE;
+                    const std::string& ident_name = option->cond->left->get_label();
+
+                    if (global_idents.count(ident_name) > 0) {
+                        global_idents[ident_name] = Value(0.0, right.first.get_dimension());
+                    } else {
+                        if (inside_func_or_block) {
+                            for (auto& local_var : local_vars) {
+                                if (local_var.first == ident_name) {
+                                    local_var.second = Value(0.0, right.first.get_dimension());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (
+                    right.first._type == Value::UNDEFINED &&
+                    option->cond->right->get_tag() == Tag::IDENT &&
+                    left.first._type == Value::DOUBLE
+                ) {
+                    right.first._type = Value::DOUBLE;
+                    const std::string& ident_name = option->cond->right->get_label();
+
+                    if (global_idents.count(ident_name) > 0) {
+                        global_idents[ident_name] = Value(0.0, left.first.get_dimension());
+                    } else {
+                        if (inside_func_or_block) {
+                            for (auto& local_var : local_vars) {
+                                if (local_var.first == ident_name) {
+                                    local_var.second = Value(0.0, left.first.get_dimension());
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if (!(
-                        left.first._type == right.first._type &&
-                        left.first._type == Value::DOUBLE &&
-                        Value::check_dimensions(left.first.get_dimension(), right.first.get_dimension())
+                    left.first._type == right.first._type &&
+                    left.first._type == Value::DOUBLE &&
+                    Value::check_dimensions(left.first.get_dimension(), right.first.get_dimension())
                 )) {
+                    if (left.first._type == Value::UNDEFINED) {
+                        throw std::invalid_argument(
+                                "Undefined value: " +
+                                to_string(left.first)
+                        );
+                    }
+
+                    if (right.first._type == Value::UNDEFINED) {
+                        throw std::invalid_argument(
+                                "Undefined value: " +
+                                to_string(right.first)
+                        );
+                    }
+
                     throw std::invalid_argument(
                             "Cannot compare non double (or with different dimension) value: " +
                             to_string(left.first) +
@@ -338,13 +414,69 @@ std::pair<Value, name_table> analyse(
         auto left = analyse(node->left, inside_func_or_block, local_vars, is_usub);
         auto right = analyse(node->right, inside_func_or_block, left.second, is_usub);
 
+        if (
+            left.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            right.first._type == Value::DOUBLE
+        ) {
+            left.first._type = Value::DOUBLE;
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(0.0, right.first.get_dimension());
+            } else {
+                if (inside_func_or_block) {
+                    for (auto& local_var : local_vars) {
+                        if (local_var.first == ident_name) {
+                            local_var.second = Value(0.0, right.first.get_dimension());
+                        }
+                    }
+                }
+            }
+        }
+
+        if (
+            right.first._type == Value::UNDEFINED &&
+            node->right->get_tag() == Tag::IDENT &&
+            left.first._type == Value::DOUBLE
+        ) {
+            right.first._type = Value::DOUBLE;
+            const std::string& ident_name = node->right->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(0.0, left.first.get_dimension());
+            } else {
+                if (inside_func_or_block) {
+                    for (auto& local_var : local_vars) {
+                        if (local_var.first == ident_name) {
+                            local_var.second = Value(0.0, left.first.get_dimension());
+                        }
+                    }
+                }
+            }
+        }
+
         if (!(
             left.first._type == right.first._type &&
             left.first._type == Value::DOUBLE &&
             Value::check_dimensions(left.first.get_dimension(), right.first.get_dimension())
         )) {
+            if (left.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(left.first)
+                );
+            }
+
+            if (right.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(right.first)
+                );
+            }
+
             throw std::invalid_argument(
-                    "Cannot ADD/SUB non double (or with different dimension) value: " +
+                    "Cannot ADD/SUB/AND/OR non double (or with different dimension) value: " +
                     to_string(left.first) +
                     " and value: " +
                     to_string(right.first)
@@ -358,10 +490,66 @@ std::pair<Value, name_table> analyse(
         auto left = analyse(node->left, inside_func_or_block, local_vars, is_usub);
         auto right = analyse(node->right, inside_func_or_block, left.second, is_usub);
 
+        if (
+            left.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            right.first._type == Value::DOUBLE
+        ) {
+            left.first._type = Value::DOUBLE;
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(0.0);
+            } else {
+                if (inside_func_or_block) {
+                    for (auto& local_var : local_vars) {
+                        if (local_var.first == ident_name) {
+                            local_var.second = Value(0.0);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (
+            right.first._type == Value::UNDEFINED &&
+            node->right->get_tag() == Tag::IDENT &&
+            left.first._type == Value::DOUBLE
+        ) {
+            right.first._type = Value::DOUBLE;
+            const std::string& ident_name = node->right->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(0.0);
+            } else {
+                if (inside_func_or_block) {
+                    for (auto& local_var : local_vars) {
+                        if (local_var.first == ident_name) {
+                            local_var.second = Value(0.0);
+                        }
+                    }
+                }
+            }
+        }
+
         if (!(
-                left.first._type == right.first._type &&
-                left.first._type == Value::DOUBLE
+            left.first._type == right.first._type &&
+            left.first._type == Value::DOUBLE
         )) {
+            if (left.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(left.first)
+                );
+            }
+
+            if (right.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(right.first)
+                );
+            }
+
             throw std::invalid_argument(
                     "Cannot MUL/DIV/FRAC non double value: " +
                     to_string(left.first) +
@@ -388,12 +576,26 @@ std::pair<Value, name_table> analyse(
         auto right = analyse(node->right, inside_func_or_block, left.second, is_usub);
 
         if (!(
-                left.first._type == right.first._type &&
-                left.first._type == Value::DOUBLE &&
-                Value::is_dimensionless(right.first) &&
-                right.first.get_double() == trunc(right.first.get_double()) &&
-                right.first.get_double() >= 1
+            left.first._type == right.first._type &&
+            left.first._type == Value::DOUBLE &&
+            Value::is_dimensionless(right.first) &&
+            right.first.get_double() == trunc(right.first.get_double()) &&
+            right.first.get_double() >= 1
         )) {
+            if (left.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(left.first)
+                );
+            }
+
+            if (right.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(right.first)
+                );
+            }
+
             throw std::invalid_argument(
                     "Cannot POW non double (or to dimensional or non integer degree) value: " +
                     to_string(left.first) +
@@ -419,6 +621,20 @@ std::pair<Value, name_table> analyse(
             Value::is_dimensionless(left.first) &&
             Value::is_dimensionless(cond.first)
         )) {
+            if (left.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(left.first)
+                );
+            }
+
+            if (right.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(right.first)
+                );
+            }
+
             throw std::invalid_argument(
                     "Cannot use SUM operator on non double (or on dimensional) value: " +
                     to_string(left.first) +
@@ -451,6 +667,13 @@ std::pair<Value, name_table> analyse(
         auto right = analyse(node->right, inside_func_or_block, local_vars, is_usub);
 
         if (right.first._type != Value::DOUBLE) {
+            if (right.first._type == Value::UNDEFINED) {
+                throw std::invalid_argument(
+                        "Undefined value: " +
+                        to_string(right.first)
+                );
+            }
+
             throw std::invalid_argument(
                     "Cannot use ABS operator on non double value: " +
                     to_string(right.first)
@@ -470,8 +693,30 @@ std::pair<Value, name_table> analyse(
 
     if (current_tag == Tag::SET) {
         if (inside_func_or_block) {
-            local_vars.emplace(
-                 node->left->get_label(),
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                throw std::invalid_argument(
+                        "Local ident with name: " +
+                        ident_name +
+                        "is already exists in global scope, node: " +
+                        node->toString()
+                );
+            }
+
+            for (const auto& cur : local_vars) {
+                if (cur.first == ident_name) {
+                    throw std::invalid_argument(
+                            "Local ident with name: " +
+                            ident_name +
+                            "is already exists in local scope, node: " +
+                            node->toString()
+                    );
+                }
+            }
+
+            local_vars.emplace_back(
+                 ident_name,
                  analyse(node->right, inside_func_or_block, local_vars, is_usub).first
              );
 
@@ -481,8 +726,19 @@ std::pair<Value, name_table> analyse(
             };
         } else {
             if (node->left->get_tag() == Tag::IDENT) {
+                const std::string& ident_name = node->left->get_label();
+
+                if (global_idents.count(ident_name) > 0) {
+                    throw std::invalid_argument(
+                            "Global ident with name: " +
+                            ident_name +
+                            "is already exists, node: " +
+                            node->toString()
+                    );
+                }
+
                 global_idents.emplace(
-                    node->left->get_label(),
+                    ident_name,
                     analyse(node->right, inside_func_or_block, local_vars, is_usub).first
                 );
 
@@ -491,20 +747,17 @@ std::pair<Value, name_table> analyse(
                     local_vars
                 };
             } else if (node->left->get_tag() == Tag::FUNC) {
-                auto res = std::vector<std::pair<std::string, Value>>();
+                std::vector<std::pair<std::string, Value>> res;
                 for (auto field : node->left->fields) {
                     res.emplace_back(field->get_label(), Value());
                 }
 
-                global_funcs.emplace(
+                global_funcs_body.emplace(
                     node->left->get_label(),
                     std::pair<Node*, std::vector<std::pair<std::string, Value>>>(node->right, res)
                 );
 
-                return {
-                    Value(),
-                    local_vars
-                };
+                return analyse(node->right, true, res, is_usub);
             } else {
                 throw std::invalid_argument("Cannot analyse SET statement: " + node->toString());
             }

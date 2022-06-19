@@ -40,6 +40,8 @@ public:
                 return "MATRIX";
             case FUNCTION:
                 return "FUNCTION";
+            case UNDEFINED:
+                return "UNDEFINED";
             default:
                 assert(false);
         }

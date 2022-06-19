@@ -1,14 +1,26 @@
+\input{/home/me/VIII/Diplom/docs/preproc.tex}
 \begin{document}
+
+    Статическая проверка типов: складываем метры с~килограммами.
 
     \begin{preproc}
 
-        switch(x) := \begin{block}
-             i := x * 2 \\
-             i
-        \end{block}
+        switch(x) := \begin{caseblock}
+                         1 \cdot kg \when x > 0 \\
+                         1 \cdot m \when x < 0 \\
+                         1 \otherwise
+        \end{caseblock} \\
 
-        switch(2) = \placeholder{} \\
+        switch(10) = \placeholder{} \\
+        switch(-10) = \placeholder{} \\
+        switch(0) = \placeholder{} \\
+        switch(1) + switch(-1) = \placeholder{} \\
+        switch(-1) + switch(1) = \placeholder{} \\
+        switch(1) \cdot switch(-1) = \placeholder{} \\
+
 
     \end{preproc}
 
+
 \end{document}
+

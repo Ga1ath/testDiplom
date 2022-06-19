@@ -48,5 +48,9 @@ Node* copy_type_rec(
 
 Node* copy_type(Node* type, const std::vector<TypeVariable *> &non_generic);
 
-std::pair<Value, name_table>
-analyse(Node *node, bool inside_func_or_block, name_table local_vars, bool is_usub);
+std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
+    Node *node,
+    bool inside_func_or_block,
+    std::vector<std::pair<std::string, Value>> local_vars,
+    bool is_usub
+);
