@@ -37,7 +37,7 @@ std::string make_replacement(const std::string& prog, const replacement_map& m) 
 }
 
 int main(int argc, char *argv[]) {
-//    auto start = std::chrono::steady_clock::now();
+    auto start = std::chrono::steady_clock::now();
 
     Parser B;
 
@@ -48,8 +48,8 @@ int main(int argc, char *argv[]) {
 	const char *file_out;
 
 	if (argc < 2 || argc > 3) { //число аргументов должно быть равно 1 или 2
-		file_in = "/home/me/VIII/Diplom/debug.tex";
-		file_out = "/home/me/VIII/Diplom/_debug.tex";
+		file_in = "/home/me/VIII/Diplom/test.tex";
+		file_out = "/home/me/VIII/Diplom/_test.tex";
 //		replace = true;
 //		std::cerr << "Usage: " << argv[0] << " input [output]" << std::endl;
 //		return 1;
@@ -82,11 +82,11 @@ int main(int argc, char *argv[]) {
             break;
         }
 		Lexer l;
-//		try {
+		try {
 			std::vector<Token> p = l.program_to_tokens(Position::ps);
-			for (auto& i : p) {
-                printf("%s\n", to_string(i).c_str());
-            }
+//			for (auto& i : p) {
+//                printf("%s\n", to_string(i).c_str());
+//            }
 			B.init(p);
 //            std::cout << "after B.init(p);\n";
 			res = new Node();
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 			res->fields = B.block(NONE);
 //            std::cout << "after B.block(NONE);\n";
 			res->set_tag(ROOT);
-			res->print("");
+//			res->print("");
 //            std::cout << "after res->print(\"\");\n";
 
             // Стадия семантического анализа для проверки корректности операций с размерными физическими величинами
@@ -109,22 +109,22 @@ int main(int argc, char *argv[]) {
 			fh.print_to_out(replacement);
 //			std::cout << "fh.print_to_out\n";
 			Node::reps.clear();
-//		}
-//		catch (Error& err) {
-//		    std::cout << "catch (Error err)\n";
-//			std::cerr << file_in << ":" << err.what() << std::endl;
-//			ok = false;
-//		}
-//		catch (Value::BadType& err) {
-//            std::cout << "catch (Value::BadType err\n)";
-//			std::cerr << file_in << ":" << err.what() << std::endl;
-//			ok = false;
-//		}
-//		catch (std::exception& err) {
-//            std::cout << "catch (std::exception err)\n";
-//			std::cerr << file_in << ":" << err.what() << std::endl;
-//			ok = false;
-//		}
+		}
+		catch (Error& err) {
+		    std::cout << "catch (Error err)\n";
+			std::cerr << file_in << ":" << err.what() << std::endl;
+			ok = false;
+		}
+		catch (Value::BadType& err) {
+            std::cout << "catch (Value::BadType err\n)";
+			std::cerr << file_in << ":" << err.what() << std::endl;
+			ok = false;
+		}
+		catch (std::exception& err) {
+            std::cout << "catch (std::exception err)\n";
+			std::cerr << file_in << ":" << err.what() << std::endl;
+			ok = false;
+		}
 
         delete res;
 	}
@@ -141,9 +141,9 @@ int main(int argc, char *argv[]) {
 //	    delete[] file_out;
 //	}
 
-//    auto end = std::chrono::steady_clock::now();
-//    auto diff = end - start;
-//    std::cout << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+    auto end = std::chrono::steady_clock::now();
+    auto diff = end - start;
+    std::cout << std::chrono::duration <double, std::milli> (diff).count() << std::endl;
 
     return 0;
 }

@@ -34,7 +34,6 @@ Value::Value(std::array<int, 7> dim) : _type(DOUBLE) {
 
 Value::Value(double d) : _type(DOUBLE) {
     _double_data = d;
-    _dimension = dimensionless;
 }
 
 Value::Value(double d, std::array<int, 7> dim) : _type(DOUBLE) {
@@ -66,7 +65,7 @@ Value::Value(Func *f) : _type(FUNCTION) {
 }
 
 Value::Value(const Value &other) : _type(other._type) {
-    if (_type == DOUBLE) {
+    if (_type == DOUBLE || _type == INFERRED_DOUBLE) {
         _double_data = other._double_data;
         _dimension = other._dimension;
     } else if (_type == MATRIX) {
@@ -77,7 +76,7 @@ Value::Value(const Value &other) : _type(other._type) {
                 (*_matrix_data)[i].push_back(Value((*other._matrix_data)[i][j]));
             }
         }
-    } else {
+    } else if (_type == FUNCTION) {
         _function_data = new Func(*other._function_data);
     }
 }
@@ -85,13 +84,13 @@ Value::Value(const Value &other) : _type(other._type) {
 Value& Value::operator=(const Value &other) {
 
     if (&other != this) {
-        if (_type == DOUBLE) {
+        if (_type == DOUBLE || _type == INFERRED_DOUBLE) {
             _double_data = 0.0;
             _dimension.fill(0);
         } else if (_type == MATRIX) {
             delete _matrix_data;
             _dimension.fill(0);
-        } else {// if (_type == FUNCTION) {
+        } else if (_type == FUNCTION) {
             delete _function_data;
         }
         _type = other._type;
@@ -106,12 +105,12 @@ Value& Value::operator=(const Value &other) {
                     (*_matrix_data)[i].push_back(Value((*other._matrix_data)[i][j]));
                 }
             }
-        } else {
+        } else if (_type == FUNCTION) {
             _function_data = new Func(*other._function_data);
         }
     }
-    return *this;
 
+    return *this;
 }
 
 Value::~Value() {
@@ -122,7 +121,7 @@ Value::~Value() {
 // Функции ниже в зависимости от типа возвращают значение или бросают исключение
 
 double Value::get_double() const {
-    if (_type != DOUBLE) {
+    if (_type != DOUBLE && _type != INFERRED_DOUBLE) {
         std::cout << "error in get_double()\n";
         throw BadType(_type, DOUBLE);
     }
@@ -130,7 +129,7 @@ double Value::get_double() const {
 }
 
 std::array<int, 7> Value::get_dimension() const {
-    if (_type != DOUBLE) {
+    if (_type != DOUBLE && _type != INFERRED_DOUBLE) {
         std::cout << "error in get_double()\n";
         throw BadType(_type, DOUBLE);
     }
@@ -210,113 +209,9 @@ void Node::def(const std::string& name, const Value& val, name_table *ptr) {
     global[name] = val;
 }
 
-// Размерна ли величина
-Coordinate* Node::have_dimensions(Coordinate* coordinate) {
-    if (this->_tag == DIMENSION) {
-        coordinate = &this->_coord;
-    }
-    if (left) {
-        if (!coordinate) {
-            coordinate = this->left->have_dimensions(coordinate);
-        } else {
-            return coordinate;
-        }
-    }
-    if (right) {
-        if (!coordinate) {
-            coordinate = this->right->have_dimensions(coordinate);
-        } else {
-            return coordinate;
-        }
-    }
-    if (cond) {
-        if (!coordinate) {
-            coordinate = this->cond->have_dimensions(coordinate);
-        } else {
-            return coordinate;
-        }
-    }
-    if (!fields.empty()) {
-        for (auto& field : fields) {
-            if (!coordinate) {
-                coordinate = field->have_dimensions(coordinate);
-            } else {
-                return coordinate;
-            }
-        }
-    }
-
-    return coordinate;
-}
-
-int iter = 0;
-
-// Подсчет размерности левой / правой части выражения
-int* Node::calculate_dimensions(int* dims, bool is_mul) {
-    if (iter >= 2) {
-        iter = 0;
-    }
-
-    // m, kg, s, A, K, mol, cd
-    std::vector<std::string> dim_pos{"m", "kg", "s", "A", "K", "mol", "cd"};
-
-    if (this->_tag == DIMENSION) {
-        if (is_mul || iter == 0) {
-            dims[std::distance(
-                    dim_pos.begin(),
-                    std::find(
-                            dim_pos.begin(),
-                            dim_pos.end(),
-                            this->_label
-                    )
-            )]++;
-            iter++;
-        } else {
-            dims[std::distance(
-                    dim_pos.begin(),
-                    std::find(
-                            dim_pos.begin(),
-                            dim_pos.end(),
-                            this->_label
-                    )
-            )]--;
-            iter++;
-        }
-
-        return dims;
-    }
-    if (this->_tag == MUL) {
-        dims = left->calculate_dimensions(dims, is_mul);
-        dims = right->calculate_dimensions(dims, is_mul);
-    }
-    else if (this->_tag == DIV) {
-        is_mul = false;
-        dims = left->calculate_dimensions(dims, is_mul);
-        dims = right->calculate_dimensions(dims, is_mul);
-    } else {
-        if (left) {
-            dims = left->calculate_dimensions(dims, is_mul);
-        }
-        if (right) {
-            dims = right->calculate_dimensions(dims, is_mul);
-        }
-        if (!fields.empty()) {
-            for (auto &field: fields) {
-                dims = field->calculate_dimensions(dims, is_mul);
-            }
-        }
-    }
-
-    return dims;
-}
-
 // Семантический анализ (проверка размерностей)
 void Node::semantic_analysis() {
     if (_tag == ROOT) {
-        for (auto & field : fields) {
-            field->semantic_analysis();
-        }
-    } else if (_tag == BEGINB) {
         for (auto & field : fields) {
             field->semantic_analysis();
         }
@@ -325,48 +220,10 @@ void Node::semantic_analysis() {
     }
 }
 
-// Определение типа
-std::string& Node::get_type(std::string& tag) {
-    if (this->_tag == FUNC) {
-        tag = "FUNCTION";
-    }
-    if (this->_tag == IDENT) {
-        size_t sz = fields.size();
-        if (sz != 0) {
-            tag = "MATRIX";
-        }
-    }
-    if (left) {
-        if (tag.empty()) {
-            tag = this->left->get_type(tag);
-        } else {
-            return tag;
-        }
-    }
-    if (right) {
-        if (tag.empty()) {
-            tag = this->right->get_type(tag);
-        } else {
-            return tag;
-        }
-    }
-    if (!fields.empty()) {
-        for (auto& field : fields) {
-            if (tag.empty()) {
-                tag = field->get_type(tag);
-            } else {
-                return tag;
-            }
-        }
-    }
-
-    return tag;
-}
-
 Value Node::exec(name_table *scope = nullptr) {
     if (_tag == NUMBER) {   //если это NUMBER, то в _label записана строка с числом
         double val = std::stod(this->_label);
-        return Value(val, Value::dimensionless);
+        return {val, Value::dimensionless};
     }
     else if (_tag == BEGINM) {  //это матрица, нужно собрать из полей Matrix
         Matrix m;   //при построении проверяется, что матрица прямоугольная и как минимум 1 х 1, поэтому здесь проверки не нужны
@@ -377,7 +234,7 @@ Value Node::exec(name_table *scope = nullptr) {
             }
             m.push_back(v);
         }
-        return Value(m);
+        return {m};
     }
     else if (_tag == IDENT) {   //переменная
         Value x_val = Node::lookup(_label, scope, _coord);
@@ -424,9 +281,6 @@ Value Node::exec(name_table *scope = nullptr) {
         Func *f = f_val.get_function();
         //загрузка значений имен переменных
         size_t f_s = fields.size();
-        if (f_s != f->argv.size()) {
-            throw Error(_coord, "Wrong argument number");
-        }
         std::vector<Value> args;
         for (size_t i = 0; i < f_s; ++i) {
             args.push_back(fields[i]->exec(scope));
@@ -478,7 +332,7 @@ Value Node::exec(name_table *scope = nullptr) {
                     throw Error(_coord, "Index is out of range");
                 }
                 (*m)[i][j] = right->exec(scope);
-                return Value(0.0, Value::dimensionless);
+                return {0.0, Value::dimensionless};
             }
         }
         else if (left->_tag == FUNC) { //функция
@@ -486,14 +340,6 @@ Value Node::exec(name_table *scope = nullptr) {
             //список аргументов функции
             //при объявлении функции допустимы только IDENT в списке аргументов
             for (auto it = left->fields.begin(); it < left->fields.end(); ++it) {
-                if ((*it)->_tag != IDENT) {
-                    throw Error(_coord, "Can't define function");
-                }
-                for (auto & n : ns) {
-                    if (n == (*it)->_label) {
-                        throw Error((*it)->_coord, "Duplicate function argument");
-                    }
-                }
                 ns.push_back((*it)->_label);
             }
             //если функция объявляется глобально, ссылаться на Node из дерева нельзя
@@ -528,11 +374,11 @@ Value Node::exec(name_table *scope = nullptr) {
         Value res = left->exec(scope);
         if (right->_tag == PLACEHOLDER) {
             reps[right->_coord].replacement = res;
-            return Value(1.0, Value::dimensionless); //равенство выполняется, вернуть 1 - нормально
+            return {1.0, Value::dimensionless}; //равенство выполняется, вернуть 1 - нормально
         } else if (right->left != nullptr && right->left->_tag == PLACEHOLDER) {
             Value r = Value::div(res, right->right->exec(scope), _coord);
             reps[right->_coord].replacement = r;
-            return Value(1.0, Value::dimensionless); //равенство выполняется, вернуть 1 - нормально
+            return {1.0, Value::dimensionless}; //равенство выполняется, вернуть 1 - нормально
         }
         return Value::eq(res, right->exec(scope), _coord);
     }
@@ -617,7 +463,7 @@ Value Node::exec(name_table *scope = nullptr) {
         }
         Matrix m;
         m.push_back(row);
-        return Value(m);
+        return {m};
     }
     else if (_tag == GRAPHIC) {
         Value func_v = Node::lookup(_label, scope, _coord);
@@ -657,7 +503,7 @@ Value Node::exec(name_table *scope = nullptr) {
     else if (_tag == KEYWORD) {
         auto res = constants.find(_label);
         if (res != constants.end()) {
-            return Value(res->second);
+            return {res->second};
         } else {
             auto result = arg_count.find(_label);
             if (result == arg_count.end()) {
@@ -674,20 +520,20 @@ Value Node::exec(name_table *scope = nullptr) {
             }
             if (argc == 1) {
                 if (_label == "\\floor" || Value::is_dimensionless(args[0])) {
-                    return Value(funcs1[_label](args[0].get_double()), args[0].get_dimension());
+                    return {funcs1[_label](args[0].get_double()), args[0].get_dimension()};
                 } else {
                     std::string error = _label + " gets only dimensionless argument";
                     throw Error(_coord, error);
                 }
             } else if (argc == 2) {
-                return Value(funcs2[_label](args[0].get_double(), args[1].get_double()));
+                return {funcs2[_label](args[0].get_double(), args[1].get_double())};
             }
         }
     }
     else if (_tag == DIMENSION) {
         auto res = dimensions.find(_label);
-        return Value(res->second);
+        return {res->second};
     }
 
-    return Value(0.0, Value::dimensionless);
+    return {0.0, Value::dimensionless};
 }

@@ -25,10 +25,11 @@ typedef std::vector<std::vector<Value>> Matrix;
 class Value {
 public:
     typedef enum Type {
-        DOUBLE, MATRIX, FUNCTION, UNDEFINED
+        DOUBLE, MATRIX, FUNCTION, UNDEFINED, INFERRED_DOUBLE
     } Type;
 
     Type _type;
+    std::array<int, 7> _dimension = dimensionless;
 
     constexpr const static std::array<int, 7> dimensionless = {0, 0, 0, 0, 0, 0, 0};
 
@@ -42,6 +43,8 @@ public:
                 return "FUNCTION";
             case UNDEFINED:
                 return "UNDEFINED";
+            case INFERRED_DOUBLE:
+                return "INFERRED_DOUBLE";
             default:
                 assert(false);
         }
@@ -62,8 +65,6 @@ private:
         std::vector<std::vector<Value>> *_matrix_data;
         Func *_function_data;
     };
-
-    std::array<int, 7> _dimension;
 
 public:
 
@@ -420,7 +421,7 @@ public:
     }
 
     friend std::string to_string(const Value &val) {
-        if (val._type == DOUBLE) {
+        if (val._type == DOUBLE || val._type == INFERRED_DOUBLE) {
             return double_to_String(val._double_data) + getDimension_in_frac(val);
         }
         if (val._type == MATRIX) {
@@ -444,6 +445,10 @@ public:
         if (val._type == FUNCTION) {
             return "function"; //или должно быть имя?
         }
+        if (val._type == UNDEFINED) {
+            return "undefined";
+        }
+
         assert(false);
     }
 
@@ -451,13 +456,15 @@ public:
 
     std::array<int, 7> get_dimension() const;
 
-    Matrix &get_matrix() const;
+    Matrix& get_matrix() const;
 
-    Func *get_function() const;
+    Func* get_function() const;
 
-    friend bool is_equal_dim(const Value &left, const Value &right) {
+    static bool is_equal_dim(const Value &left, const Value &right) {
         for (int i = 0; i < 7; i++) {
-            if (left._dimension[i] != right._dimension[i]) return false;
+            if (left._dimension[i] != right._dimension[i]) {
+                return false;
+            }
         }
         return true;
     }
@@ -489,7 +496,7 @@ public:
                 throw Error(pos, "Matrix dimensions mismatch");
             }
         }
-        throw Error(pos, "Addition cannot bed done");
+        throw Error(pos, "Addition cannot be done");
     }
 
     static Value usub(const Value &arg, const Coordinate& pos) {

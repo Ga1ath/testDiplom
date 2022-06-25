@@ -96,10 +96,4 @@ public:
 	static void def(const std::string& name, const Value&, name_table *ptr);
 
     void semantic_analysis();
-
-    Coordinate* have_dimensions(Coordinate* coordinate);
-
-    int *calculate_dimensions(int* dims, bool is_mul);
-
-    std::string &get_type(std::string &tag);
 };
