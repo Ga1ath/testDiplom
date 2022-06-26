@@ -68,7 +68,7 @@ Value::Value(const Value &other) : _type(other._type) {
     if (_type == DOUBLE || _type == INFERRED_DOUBLE) {
         _double_data = other._double_data;
         _dimension = other._dimension;
-    } else if (_type == MATRIX) {
+    } else if (_type == MATRIX || _type == INFERRED_MATRIX) {
         _dimension = other._dimension;
         _matrix_data = new Matrix(other._matrix_data->size());
         for (size_t i = 0; i < _matrix_data->size(); ++i) {
@@ -87,17 +87,17 @@ Value& Value::operator=(const Value &other) {
         if (_type == DOUBLE || _type == INFERRED_DOUBLE) {
             _double_data = 0.0;
             _dimension.fill(0);
-        } else if (_type == MATRIX) {
+        } else if (_type == MATRIX || _type == INFERRED_MATRIX) {
             delete _matrix_data;
             _dimension.fill(0);
         } else if (_type == FUNCTION) {
             delete _function_data;
         }
         _type = other._type;
-        if (_type == DOUBLE) {
+        if (_type == DOUBLE || _type == INFERRED_DOUBLE) {
             _dimension = other._dimension;
             _double_data = other._double_data;
-        } else if (_type == MATRIX) {
+        } else if (_type == MATRIX || _type == INFERRED_MATRIX) {
             _dimension = other._dimension;
             _matrix_data = new Matrix(other._matrix_data->size());
             for (size_t i = 0; i < _matrix_data->size(); ++i) {
@@ -114,7 +114,7 @@ Value& Value::operator=(const Value &other) {
 }
 
 Value::~Value() {
-    if (_type == MATRIX) delete _matrix_data;
+    if (_type == MATRIX || _type == INFERRED_MATRIX) delete _matrix_data;
     if (_type == FUNCTION) delete _function_data;
 }
 
@@ -137,7 +137,7 @@ std::array<int, 7> Value::get_dimension() const {
 }
 
 Matrix& Value::get_matrix() const {
-    if (_type != MATRIX) {
+    if (_type != MATRIX && _type != INFERRED_MATRIX) {
         std::cout << "error in get_matrix()\n";
         throw BadType(_type, MATRIX);
     }
@@ -383,7 +383,11 @@ Value Node::exec(name_table *scope = nullptr) {
         return Value::eq(res, right->exec(scope), _coord);
     }
     else if (_tag == NEQ) {
-        return Value(!Value::eq(left->exec(scope), right->exec(scope), _coord).get_double());
+        return {
+            static_cast<double>(
+                !Value::eq(left->exec(scope), right->exec(scope), _coord).get_double()
+            )
+        };
     }
     else if (_tag == LEQ) {
         return Value::le(left->exec(scope), right->exec(scope), _coord);
@@ -448,7 +452,7 @@ Value Node::exec(name_table *scope = nullptr) {
         return res;
     }
     else if (_tag == TRANSP) {
-        return Value::transpose(left->exec(scope), _coord);
+        return Value::transpose(left->exec(scope));
     }
     else if (_tag == RANGE) {
         std::vector<Value> row;

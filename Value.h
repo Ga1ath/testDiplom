@@ -25,7 +25,7 @@ typedef std::vector<std::vector<Value>> Matrix;
 class Value {
 public:
     typedef enum Type {
-        DOUBLE, MATRIX, FUNCTION, UNDEFINED, INFERRED_DOUBLE
+        DOUBLE, MATRIX, FUNCTION, UNDEFINED, INFERRED_DOUBLE, INFERRED_MATRIX
     } Type;
 
     Type _type;
@@ -45,6 +45,8 @@ public:
                 return "UNDEFINED";
             case INFERRED_DOUBLE:
                 return "INFERRED_DOUBLE";
+            case INFERRED_MATRIX:
+                return "INFERRED_MATRIX";
             default:
                 assert(false);
         }
@@ -98,7 +100,7 @@ public:
     ~Value();
 
     friend std::string to_plot(const Value &matr) {
-        if (matr._type == MATRIX) {
+        if (matr._type == MATRIX || matr._type == INFERRED_MATRIX) {
             std::string res;
             Matrix *m = &matr.get_matrix();
             for (auto & it : *m) {
@@ -107,7 +109,8 @@ public:
             }
             return res;
         }
-        assert(false);
+
+        return "";
     }
 
     static int count_of_dim(const std::array<int, 7> &dim) {
@@ -424,7 +427,7 @@ public:
         if (val._type == DOUBLE || val._type == INFERRED_DOUBLE) {
             return double_to_String(val._double_data) + getDimension_in_frac(val);
         }
-        if (val._type == MATRIX) {
+        if (val._type == MATRIX || val._type == INFERRED_MATRIX) {
             std::string res = "\\begin{pmatrix}\n";
             for (auto it = (*val._matrix_data).begin();;) {
                 auto jt = (*it).begin();
@@ -449,7 +452,7 @@ public:
             return "undefined";
         }
 
-        assert(false);
+        return "";
     }
 
     double get_double() const;
@@ -470,7 +473,7 @@ public:
     }
 
     static bool is_dimensionless(const Value &value) {
-        for (int i: value._dimension) {
+        for (int i : value._dimension) {
             if (i != 0) {
                 return false;
             }
@@ -479,9 +482,9 @@ public:
     }
 
     static Value plus(const Value &left, const Value &right, const Coordinate& pos) {
-        if (left._type == DOUBLE) { //если right - не DOUBLE, сработает исключение
-            return Value(left.get_double() + right.get_double(), left._dimension);
-        } else if (left._type == MATRIX) {
+        if (left._type == DOUBLE || left._type == INFERRED_DOUBLE) { //если right - не DOUBLE, сработает исключение
+            return {left.get_double() + right.get_double(), left._dimension};
+        } else if (left._type == MATRIX || left._type == INFERRED_MATRIX) {
             Matrix *l = &left.get_matrix();
             Matrix *r = &right.get_matrix();
             if ((*l).size() == (*r).size() && (*l)[0].size() == (*r)[0].size()) {
@@ -491,7 +494,7 @@ public:
                         sum[i].push_back(plus((*l)[i][j], (*r)[i][j], pos));
                     }
                 }
-                return Value(sum);
+                return {sum};
             } else {
                 throw Error(pos, "Matrix dimensions mismatch");
             }
@@ -500,9 +503,9 @@ public:
     }
 
     static Value usub(const Value &arg, const Coordinate& pos) {
-        if (arg._type == DOUBLE) {
-            return Value(-arg.get_double(), arg._dimension);
-        } else if (arg._type == MATRIX) {
+        if (arg._type == DOUBLE || arg._type == INFERRED_DOUBLE) {
+            return {-arg.get_double(), arg._dimension};
+        } else if (arg._type == MATRIX || arg._type == INFERRED_MATRIX) {
             Matrix *a = &arg.get_matrix();
             Matrix res(a->size());
             for (size_t i = 0; i < res.size(); ++i) {
@@ -510,15 +513,15 @@ public:
                     res[i].push_back(usub((*a)[i][j], pos));
                 }
             }
-            return Value(res);
+            return {res};
         }
         throw Error(pos, "Substitution cannot be done");
     }
 
     static Value sub(const Value &left, const Value &right, const Coordinate& pos) {
-        if (left._type == DOUBLE) {
-            return Value(left.get_double() - right.get_double(), left._dimension);
-        } else if (left._type == MATRIX) {
+        if (left._type == DOUBLE || left._type == INFERRED_DOUBLE) {
+            return {left.get_double() - right.get_double(), left._dimension};
+        } else if (left._type == MATRIX || left._type == INFERRED_MATRIX) {
             Matrix *l = &left.get_matrix();
             Matrix *r = &right.get_matrix();
             if ((*l).size() == (*r).size() && (*l)[0].size() == (*r)[0].size()) {
@@ -528,7 +531,7 @@ public:
                         dif[i].push_back(sub((*l)[i][j], (*r)[i][j], pos));
                     }
                 }
-                return Value(dif);
+                return {dif};
             } else {
                 throw Error(pos, "Matrix dimensions mismatch");
             }
@@ -537,15 +540,15 @@ public:
     }
 
     static Value mul(const Value &left, const Value &right, const Coordinate& pos) {
-        if (left._type == DOUBLE) {
-            if (right._type == DOUBLE) {
+        if (left._type == DOUBLE || left._type == INFERRED_DOUBLE) {
+            if (right._type == DOUBLE || right._type == INFERRED_DOUBLE) {
                 std::array<int, 7> dim{};
                 for (int i = 0; i < 7; i++) {
                     dim[i] = left._dimension[i] + right._dimension[i];
                 }
-                return Value(left.get_double() * right.get_double(), dim);
+                return {left.get_double() * right.get_double(), dim};
 
-            } else if (right._type == MATRIX) {
+            } else if (right._type == MATRIX || right._type == INFERRED_MATRIX) {
                 Matrix *r = &right.get_matrix();
                 Matrix mult((*r).size());
                 for (size_t i = 0; i < (*r).size(); ++i) {
@@ -553,12 +556,12 @@ public:
                         mult[i].push_back(mul(left, (*r)[i][j], pos));
                     }
                 }
-                return Value(mult);
+                return {mult};
             }
-        } else if (left._type == MATRIX) {
-            if (right._type == DOUBLE) {
+        } else if (left._type == MATRIX || left._type == INFERRED_MATRIX) {
+            if (right._type == DOUBLE || right._type == INFERRED_DOUBLE) {
                 return mul(right, left, pos);
-            } else if (right._type == MATRIX) {
+            } else if (right._type == MATRIX || right._type == INFERRED_MATRIX) {
                 Matrix *l = &left.get_matrix();
                 Matrix *r = &right.get_matrix();
                 size_t l_hor = (*l)[0].size();
@@ -577,16 +580,16 @@ public:
                             mult[i].push_back(tmp);
                         }
                     }
-                    return Value(mult);
+                    return {mult};
                 }
 
                 //скалярное произведение
                 else if (l_vert == 1 && r_vert == 1) {    //строка*строка => строка*столбец
-                    Value res = Value::mul(*l, Value::transpose(*r, pos), pos);    //если длины строк равны, mul выполнится
-                    return Value(res.get_matrix()[0][0]);
+                    Value res = Value::mul(*l, Value::transpose(*r), pos);    //если длины строк равны, mul выполнится
+                    return {res.get_matrix()[0][0]};
                 } else if (l_hor == 1 && r_hor == 1) {    //столбец*столбец => строка*столбец
-                    Value res = Value::mul(Value::transpose(*l, pos), *r, pos);
-                    return Value(res.get_matrix()[0][0]);
+                    Value res = Value::mul(Value::transpose(*l), *r, pos);
+                    return {res.get_matrix()[0][0]};
                 }
                 throw Error(pos, "Matrix/vector dimensions mismatch");
             }
@@ -595,8 +598,8 @@ public:
     }
 
     static Value div(const Value &left, const Value &right, const Coordinate& pos) {
-        if (left._type == DOUBLE) {
-            if (right._type == DOUBLE) {
+        if (left._type == DOUBLE || left._type == INFERRED_DOUBLE) {
+            if (right._type == DOUBLE || right._type == INFERRED_DOUBLE) {
                 double q = right.get_double();
                 if (q == 0.0) {
                     throw Error(pos, "Division by zero");
@@ -605,10 +608,10 @@ public:
                 for (int i = 0; i < 7; i++) {
                     dim[i] = left._dimension[i] - right._dimension[i];
                 }
-                return Value(left.get_double() / q, dim);
+                return {left.get_double() / q, dim};
             }
-        } else if (left._type == MATRIX) {
-            if (right._type == DOUBLE) {
+        } else if (left._type == MATRIX || left._type == INFERRED_MATRIX) {
+            if (right._type == DOUBLE || right._type == INFERRED_DOUBLE) {
                 double q = right.get_double();
                 if (q == 0.0) {
                     throw Error(pos, "Division by zero");
@@ -621,44 +624,50 @@ public:
     }
 
     static Value eq(const Value &left, const Value &right, const Coordinate& pos) {
-        if (left._type != right._type) {
-            return Value(0.0, dimensionless);  //точно не равны
+        if (!(
+            (left._type == DOUBLE || right._type == INFERRED_DOUBLE) &&
+            (right._type == DOUBLE || right._type == INFERRED_DOUBLE)
+            ||
+            (left._type == MATRIX || right._type == INFERRED_MATRIX) &&
+            (right._type == MATRIX || right._type == INFERRED_MATRIX)
+        )) {
+            return {0.0, dimensionless};  //точно не равны
         }
-        if (left._type == DOUBLE) {
-            return Value(left.get_double() == right.get_double());
+        if (left._type == DOUBLE || left._type == INFERRED_DOUBLE) {
+            return {static_cast<double>(left.get_double() == right.get_double())};
         }
-        if (left._type == MATRIX) {
+        if (left._type == MATRIX || left._type == INFERRED_MATRIX) {
             Matrix *l = &left.get_matrix();
             Matrix *r = &right.get_matrix();
             if (l->size() == r->size() && (*l)[0].size() == (*r)[0].size()) {
                 for (size_t i = 0; i < l->size(); ++i) {
                     for (size_t j = 0; j < (*l)[0].size(); ++j) {
                         Value x = eq((*l)[i][j], (*r)[i][j], pos);
-                        if (x.get_double() == 0.0) return Value(0.0, dimensionless);
+                        if (x.get_double() == 0.0) return {0.0, dimensionless};
                     }
                 }
-                return Value(1.0, dimensionless);
+                return {1.0, dimensionless};
             }
         }
 
         //функции не понятно как сравнивать
-        return Value(0.0, dimensionless);
+        return {0.0, dimensionless};
     }
 
     static Value le(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() <= right.get_double());  //иначе не имеет смысла
+        return {static_cast<double>(left.get_double() <= right.get_double())};  //иначе не имеет смысла
     }
 
     static Value ge(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() >= right.get_double());
+        return {static_cast<double>(left.get_double() >= right.get_double())};
     }
 
     static Value lt(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() < right.get_double());
+        return {static_cast<double>(left.get_double() < right.get_double())};
     }
 
     static Value gt(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() > right.get_double());
+        return {static_cast<double>(left.get_double() > right.get_double())};
     }
 
     static std::array<int, 7> mul_dimension(std::array<int, 7> dim, double n) {
@@ -673,34 +682,34 @@ public:
         double floor;
 
         if (Value::is_dimensionless(left)) {
-            return Value(
+            return {
                     std::pow(left.get_double(), right.get_double()),
                     mul_dimension(left.get_dimension(), right.get_double())
-                  );
+                  };
         } else if (modf(right.get_double(), &floor) == 0.0) {
-            return Value(
+            return {
                     std::pow(left.get_double(),
                     right.get_double()),
                   mul_dimension(left.get_dimension(), right.get_double())
-                  );
+                  };
         } else {
             throw Error(pos, "Power of float number is not allowed");
         }
     }
 
     static Value abs(const Value &right, const Coordinate& pos) {
-        return Value(std::abs(right.get_double()), right._dimension);
+        return {std::abs(right.get_double()), right._dimension};
     }
 
     static Value andd(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() && right.get_double());
+        return {static_cast<double>(left.get_double() && right.get_double())};
     }
 
     static Value orr(const Value &left, const Value &right, const Coordinate& pos) {
-        return Value(left.get_double() || right.get_double());
+        return {static_cast<double>(left.get_double() || right.get_double())};
     }
 
-    static Value transpose(const Value &matrix, const Coordinate& pos) {
+    static Value transpose(const Value &matrix) {
         Matrix *m = &matrix.get_matrix();
         Matrix mt;
         size_t rows = (*m)[0].size();
@@ -712,7 +721,7 @@ public:
                 mt[i][j] = (*m)[j][i];
             }
         }
-        return Value(mt);
+        return {mt};
     }
 
     // Проверка идентичности размерностей
@@ -771,6 +780,18 @@ public:
             if (dims[i] != 0) {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    static bool is_matrix_equals_dims(const Matrix& first, const Matrix& second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+
+        if (first[0].size() != second[0].size()) {
+            return false;
         }
 
         return true;

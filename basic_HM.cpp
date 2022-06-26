@@ -252,12 +252,18 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
                 const auto& expected = func_args[i].second;
 
                 if (!(
+                    expected._type == Value::UNDEFINED ||
                     (
-                        expected._type == Value::UNDEFINED ||
-                        calculated._type == expected._type ||
+                        calculated._type == expected._type
+                        ||
                         (
                             (calculated._type == Value::DOUBLE || calculated._type == Value::INFERRED_DOUBLE) &&
                             (expected._type == Value::DOUBLE || expected._type == Value::INFERRED_DOUBLE)
+                        )
+                        ||
+                        (
+                            (calculated._type == Value::MATRIX || calculated._type == Value::INFERRED_MATRIX) &&
+                            (expected._type == Value::MATRIX || expected._type == Value::INFERRED_MATRIX)
                         )
                     ) && Value::is_equal_dim(calculated, expected)
                 )) {
@@ -458,7 +464,7 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
         }
     }
 
-    if (current_tag == Tag::UADD || current_tag == Tag::NOT) {
+    if (current_tag == Tag::UADD || current_tag == Tag::NOT || current_tag == Tag::LPAREN) {
         return analyse(node->right, inside_func_or_block, local_vars, is_usub);
     }
 
@@ -506,6 +512,28 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
         }
 
         if (
+            left.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            (right.first._type == Value::MATRIX || right.first._type == Value::INFERRED_MATRIX)
+        ) {
+            left.first._type = Value::INFERRED_MATRIX;
+            left.first._dimension = right.first.get_dimension();
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(right.first.get_matrix());
+            } else {
+                if (inside_func_or_block) {
+                    for (int i = 0; i < local_vars.size(); i++) {
+                        if (local_vars[i].first == ident_name) {
+                            local_vars[i].second = Value(right.first.get_matrix());
+                        }
+                    }
+                }
+            }
+        }
+
+        if (
             right.first._type == Value::UNDEFINED &&
             node->right->get_tag() == Tag::IDENT &&
             (left.first._type == Value::DOUBLE || left.first._type == Value::INFERRED_DOUBLE)
@@ -529,10 +557,37 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
             }
         }
 
+        if (
+            right.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            (left.first._type == Value::MATRIX || left.first._type == Value::INFERRED_MATRIX)
+        ) {
+            right.first._type = Value::INFERRED_MATRIX;
+            right.first._dimension = left.first.get_dimension();
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(left.first.get_matrix());
+            } else {
+                if (inside_func_or_block) {
+                    for (int i = 0; i < local_vars.size(); i++) {
+                        if (local_vars[i].first == ident_name) {
+                            local_vars[i].second = Value(left.first.get_matrix());
+                        }
+                    }
+                }
+            }
+        }
+
         if (!(
             (left.first._type == Value::DOUBLE || left.first._type == Value::INFERRED_DOUBLE) &&
             (right.first._type == Value::DOUBLE || right.first._type == Value::INFERRED_DOUBLE) &&
             Value::check_dimensions(left.first.get_dimension(), right.first.get_dimension())
+            ||
+            (left.first._type == Value::MATRIX || left.first._type == Value::INFERRED_MATRIX) &&
+            (right.first._type == Value::MATRIX || right.first._type == Value::INFERRED_MATRIX) &&
+            Value::is_matrix_equals_dims(left.first.get_matrix(), right.first.get_matrix()) &&
+            (current_tag == Tag::ADD || current_tag == Tag::SUB)
         )) {
             if (left.first._type == Value::UNDEFINED) {
                 throw std::invalid_argument(
@@ -593,6 +648,28 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
         }
 
         if (
+            left.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            (right.first._type == Value::MATRIX || right.first._type == Value::INFERRED_MATRIX)
+        ) {
+            left.first._type = Value::INFERRED_MATRIX;
+            left.first._dimension = right.first.get_dimension();
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(right.first.get_matrix());
+            } else {
+                if (inside_func_or_block) {
+                    for (int i = 0; i < local_vars.size(); i++) {
+                        if (local_vars[i].first == ident_name) {
+                            local_vars[i].second = Value(right.first.get_matrix());
+                        }
+                    }
+                }
+            }
+        }
+
+        if (
             right.first._type == Value::UNDEFINED &&
             node->right->get_tag() == Tag::IDENT &&
             (left.first._type == Value::DOUBLE || left.first._type == Value::INFERRED_DOUBLE)
@@ -615,9 +692,36 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
             }
         }
 
+        if (
+            right.first._type == Value::UNDEFINED &&
+            node->left->get_tag() == Tag::IDENT &&
+            (left.first._type == Value::MATRIX || left.first._type == Value::INFERRED_MATRIX)
+        ) {
+            right.first._type = Value::INFERRED_MATRIX;
+            right.first._dimension = left.first.get_dimension();
+            const std::string& ident_name = node->left->get_label();
+
+            if (global_idents.count(ident_name) > 0) {
+                global_idents[ident_name] = Value(left.first.get_matrix());
+            } else {
+                if (inside_func_or_block) {
+                    for (int i = 0; i < local_vars.size(); i++) {
+                        if (local_vars[i].first == ident_name) {
+                            local_vars[i].second = Value(left.first.get_matrix());
+                        }
+                    }
+                }
+            }
+        }
+
         if (!(
             (left.first._type == Value::DOUBLE || left.first._type == Value::INFERRED_DOUBLE) &&
             (right.first._type == Value::DOUBLE || right.first._type == Value::INFERRED_DOUBLE)
+            ||
+            current_tag == Tag::MUL &&
+            (left.first._type == Value::MATRIX || left.first._type == Value::INFERRED_MATRIX) &&
+            (right.first._type == Value::MATRIX || right.first._type == Value::INFERRED_MATRIX) &&
+            (left.first.get_matrix()[0].size() == right.first.get_matrix().size())
         )) {
             if (left.first._type == Value::UNDEFINED) {
                 throw std::invalid_argument(
@@ -648,10 +752,20 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
         }
 
         if (current_tag == Tag::MUL) {
-            return {
-                {Value::sum_dimensions(left.first.get_dimension(), right.first.get_dimension())},
-                right.second
-            };
+            if (left.first._type == Value::MATRIX || left.first._type == Value::INFERRED_MATRIX) {
+                return {
+                    {
+                        left.first.get_matrix(),
+                        Value::sum_dimensions(left.first.get_dimension(), right.first.get_dimension())
+                    },
+                    right.second
+                };
+            } else {
+                return {
+                    {Value::sum_dimensions(left.first.get_dimension(), right.first.get_dimension())},
+                    right.second
+                };
+            }
         } else {
             return {
                 {Value::sub_dimensions(left.first.get_dimension(), right.first.get_dimension())},
@@ -912,14 +1026,33 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
             if (i == node->fields.size() - 1) {
                 return analyse(node->fields[i], true, local_vars, is_usub);
             } else {
-                const auto& res = analyse(node->fields[i], true, local_vars, is_usub);
+                const auto& res = analyse(
+                    node->fields[i],
+                    true,
+                    local_vars,
+                    is_usub
+                );
                 local_vars = res.second;
             }
         }
     }
 
     if (current_tag == Tag::BEGINM) {
-        return {Value(Matrix()), local_vars};
+        Matrix m;
+        Value x;
+
+        if (!node->fields.empty() && !node->fields[0]->fields.empty()) {
+            x = analyse(node->fields[0]->fields[0], inside_func_or_block, local_vars, is_usub).first;
+        }
+
+        for (const auto& field : node->fields) {
+            std::vector<Value> v;
+            for (const auto& jt : field->fields) {
+                v.push_back(x);
+            }
+            m.push_back(v);
+        }
+        return {Value(m), local_vars};
     }
 
     if (current_tag == Tag::WHILE) {
@@ -950,6 +1083,15 @@ std::pair<Value, std::vector<std::pair<std::string, Value>>> analyse(
     if (current_tag == Tag::IF) {
         const auto& res = analyse(node->cond, inside_func_or_block, local_vars, is_usub);
         return analyse(node->right, inside_func_or_block, res.second, is_usub);
+    }
+
+    if (current_tag == Tag::TRANSP) {
+        const auto& res = analyse(node->left, inside_func_or_block, local_vars, is_usub);
+
+        return {
+            Value::transpose(res.first),
+            res.second
+        };
     }
 
     throw std::invalid_argument("Cannot analyse node: " + node->toString());
