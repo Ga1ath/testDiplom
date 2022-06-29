@@ -1,6 +1,6 @@
-rm -r /home/me/VIII/Diplom/cmake-build-debug
-mkdir /home/me/VIII/Diplom/cmake-build-debug
-cd /home/me/VIII/Diplom/cmake-build-debug || exit
+rm -r "$(pwd)"/cmake-build-debug
+mkdir "$(pwd)"/cmake-build-debug
+cd "$(pwd)"/cmake-build-debug || exit
 cmake ..
 cmake -build .
 make
